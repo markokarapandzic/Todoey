@@ -11,31 +11,22 @@ import UIKit
 class TodoListViewController: UITableViewController {
     
     var itemArray = [Item]()
-    
-    let defaults = UserDefaults.standard
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         
-        let newItem = Item()
-        newItem.title = "Find Mike"
-        itemArray.append(newItem)
-        
-        let newItem2 = Item()
-        newItem2.title = "Find Mike"
-        itemArray.append(newItem2)
-        
-        let newItem3 = Item()
-        newItem3.title = "Find Mike"
-        itemArray.append(newItem3)
+        print(dataFilePath!)
         
         // Read persistante storage
-        if let items = UserDefaults.standard.array(forKey: "TodoListArray") as? [Item] {
-            itemArray = items
-        } else {
-            print("No persistante storage")
-        }
+//        if let items = UserDefaults.standard.array(forKey: "TodoListArray") as? [Item] {
+//            itemArray = items
+//        } else {
+//            print("No persistante storage")
+//        }
+        
+        loadItems()
         
     }
     
@@ -56,12 +47,6 @@ class TodoListViewController: UITableViewController {
         
         cell.accessoryType = item.done ? .checkmark : .none
         
-//        if item.done {
-//            cell.accessoryType = .checkmark
-//        } else {
-//            cell.accessoryType = .none
-//        }
-        
         return cell
         
     }
@@ -79,8 +64,6 @@ class TodoListViewController: UITableViewController {
         } else {
             tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
         }
-        
-        tableView.reloadData()
         
         tableView.deselectRow(at: indexPath, animated: true)
         
@@ -106,15 +89,45 @@ class TodoListViewController: UITableViewController {
             
             self.itemArray.append(newItem)
             
-            // presistant storage
-            self.defaults.setValue(self.itemArray, forKey: "TodoListArray")
-            
-            self.tableView.reloadData()
+            self.saveItems()
             
         }
         
         alert.addAction(action)
         present(alert, animated: true, completion: nil)
+        
+    }
+    
+    
+    // MARK - Model Manipulation Methods
+    
+    func saveItems() {
+        
+        let encoder = PropertyListEncoder()
+        
+        do {
+            // Save data in a plist file
+            let data = try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+        } catch {
+            print("Error encoding item array, \(error)")
+        }
+        
+        self.tableView.reloadData()
+        
+    }
+    
+    func loadItems() {
+        
+        if let data = try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do {
+                // read data from pfile
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("Error decoding, \(error)")
+            }
+        }
         
     }
     
