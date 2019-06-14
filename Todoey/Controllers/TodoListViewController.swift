@@ -7,17 +7,17 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoListViewController: UITableViewController {
     
     var itemArray = [Item]()
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+//    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
-        
-        print(dataFilePath!)
         
         // Read persistante storage
 //        if let items = UserDefaults.standard.array(forKey: "TodoListArray") as? [Item] {
@@ -56,14 +56,16 @@ class TodoListViewController: UITableViewController {
         
 //        print(itemArray[indexPath.row])
         
+        // Update using CoreData
+//        itemArray[indexPath.row].setValue("Completed", forKey: "title")
+        
+        // Delete using CoreData
+//        context.delete(itemArray[indexPath.row])
+//        itemArray.remove(at: indexPath.row)
+        
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
-        // Enable and Disable Checkmarks
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        saveItems()
         
         tableView.deselectRow(at: indexPath, animated: true)
         
@@ -84,8 +86,9 @@ class TodoListViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             
-            let newItem = Item()
+            let newItem = Item(context: self.context)
             newItem.title = textField.text!
+            newItem.done = false
             
             self.itemArray.append(newItem)
             
@@ -99,38 +102,58 @@ class TodoListViewController: UITableViewController {
     }
     
     
-    // MARK - Model Manipulation Methods
+    // MARK - Model Manipulation Methods(CoreData)
     
     func saveItems() {
         
-        let encoder = PropertyListEncoder()
-        
         do {
-            // Save data in a plist file
-            let data = try encoder.encode(itemArray)
-            try data.write(to: dataFilePath!)
+            // Save with CoreData
+            try context.save()
         } catch {
-            print("Error encoding item array, \(error)")
+            
         }
         
         self.tableView.reloadData()
         
     }
     
-    func loadItems() {
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+
+        // Read with CoreData
+//        let request: NSFetchRequest<Item> = Item.fetchRequest()
         
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                // read data from pfile
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("Error decoding, \(error)")
-            }
+        do {
+            itemArray = try context.fetch(request)
+        } catch {
+            print("Error fetching data, \(error)")
         }
-        
+
     }
     
 
+}
+
+// MARK: - Search bat methods
+extension TodoListViewController: UISearchBarDelegate {
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        
+        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        
+        let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
+        
+        request.sortDescriptors = [sortDescriptor]
+        
+        // Execute Request
+        
+        loadItems(with: request)
+
+        
+        tableView.reloadData()
+        
+    }
+    
 }
 
